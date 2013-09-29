@@ -1,0 +1,109 @@
+# Retroactivity model made in the Basic BNGL Model 
+
+	# Retroactivity model made in the Basic BNGL Model 
+	
+	#Original Dynamics
+	
+	begin model
+	
+	begin parameters
+	k_act 3600*60
+	k_inact 18*60
+   
+   	s 0.1
+	
+	
+	koff 1e-11 #0.045*60#0.13*60#Disociation rate for lexA domain to the Aa promoter
+	kon 1e-9 #0.0225*60*1e-9*6.022e23*42e-15#koff/20#Asociation rate for lexA domain to the Aa promoter
+	
+	tau 120 #Yeast duplication time
+
+	k_degr log(2)/tau#degradation rate according to Ajo-Franco et al log(2)/tau
+	k_degrRNA log(2)/15# Yeast is Quantification of protein half-lives in the budding yeast proteome Archana Belle et al. PNAS
+	
+    #Aa related#########################################################################################################
+
+	#Epigenetics
+	#Non TF present
+	kr 0.001387508
+	ka 0.000265988
+	ka_I ka*100
+	kr_I ka_I*2
+	tf_ka  ka_I*100 # much bigger than mean rate of histone  conversion between U and A forms or from M to U form due to TF 
+	                 # per min http://www.jbc.org/content/285/5/3341/T2.expansion.html por el de metilaci�n (cambiandolo por acetilaci�n)
+					 #tf stands for transcription factor
+	
+	kcat tf_ka
+	
+	
+	k_prod_Aa 0.69 #production constant from mRNA (translation)
+	TR_Aa 14.4*10#28.97*1000/(6.023e23*42e-15*1e-9)#rate of transcription from As(r!0).AaP(l!0,q~b) or Aa(r!0).AaP(l!0,q~b)binding 
+					#28.97 was consideren for constitutive trasncription (similar to AJo-Franco and cols)
+					#Here we are not including such basal transcription (may be important for further models
+
+	TR_ret TR_Aa
+
+	koffR koff*2^-5#1e-11#1e-7
+	kdR (koff/kon)*2^-5#(koff/kon)/1000#1e-6#(koff/kon)/10
+	konR koffR/kdR
+
+
+
+
+end parameters
+
+begin molecule types
+	#Isolated
+	As(b) #Signaling component it has one DNA binding site l
+	Aa(b,u~i~a) #Autoactivator it has also one DNA binding site to its own promoter
+	AaP(b)  #Autoactivator promoter has 8 potential sites to be bound by TF. A single binding can change the whole promoter to an active transcription form
+	Null()
+	RNA_Aa()
+	RP(b)
+end molecule types
+
+begin seed species
+	#Isolated
+	As(b) 100000
+	Aa(b,u~a) 0
+	AaP(b) 2
+	$Null() 1
+	RNA_Aa() 0
+	RP(b) 0
+end  seed species
+
+begin observables
+	Molecules Aa Aa(b)
+	Molecules As As(b)
+end observables
+
+begin reaction rules
+
+	AaP(b) -> AaP(b) + RNA_Aa() s
+
+	RP(b) + Aa(b,u~a) <-> RP(b!0).Aa(b!0,u~a) konR, koffR
+	
+	AaP(b) + As(b) <-> AaP(b!0).As(b!0) kon, koff
+	AaP(b!0).As(b!0) -> AaP(b!0).As(b!0) + RNA_Aa() kcat
+	
+	RNA_Aa() -> RNA_Aa() + Aa(b,u~i) k_prod_Aa
+	Aa(b,u~i) <-> Aa(b,u~a) k_act,k_inact
+	
+	
+	RNA_Aa() -> Null k_degrRNA
+	
+	Aa(b) -> Null k_degr
+	RP(b!0).Aa(b!0,u~a) -> RP(b) k_degr
+	RP(b!0).As(b!0,) -> RP(b) k_degr
+	AaP(b!0).As(b!0) -> AaP(b) k_degr
+	AaP(b!0).Aa(b!0,u~a) -> AaP(b) k_degr
+	As(b) -> Null k_degr 
+end reaction rules
+end model
+
+#ACTIONS
+
+generate_network({overwrite=>1});
+simulate_ode({t_end=>1440,n_steps=>1440,verbose=>1});
+
+#simulate_ssa({t_end=>1440,n_steps=>1080});
